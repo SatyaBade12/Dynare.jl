@@ -109,12 +109,13 @@ function simul_first_order!(
 end
 
 function is_jacobian_sparse(Y, context)
+    df = context.dynarefunctions
     model = context.models[1]
     results = context.results.model_results[1]
     work = context.work
     ncol = model.n_bkwrd + model.n_current
     nvar = model.endogenous_nbr
-    tmp_nbr = model.dynamic!.tmp_nbr::Vector{Int64}
+    tmp_nbr = df.dynamic_tmp_nbr::Vector{Int64}
     dynamic_ws = DynamicWs(model.endogenous_nbr, model.exogenous_nbr, ncol, sum(tmp_nbr[1:2]))
     dynamic_variables = dynamic_ws.dynamic_variables
     params = work.params
@@ -135,7 +136,7 @@ function dynamic_simulation_nl!(Y::AbstractMatrix{Float64},
     work = context.work
 
     ncol = model.n_bkwrd + model.n_current
-    tmp_nbr = dfunctions.dynamic!.tmp_nbr::Vector{Int64}
+    tmp_nbr = dfunctions.dynamic_tmp_nbr::Vector{Int64}
     dynamic_ws = DynamicWs(model.endogenous_nbr, model.exogenous_nbr, ncol, sum(tmp_nbr[1:2]))
     dynamic_variables = dynamic_ws.dynamic_variables
     lli = model.lead_lag_incidence

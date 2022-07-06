@@ -92,7 +92,7 @@ function steady!(context::Context, field::Dict{String,Any})
         x0 = Float64.(vec(view(context.work.initval_endogenous, 1, :)))
         copy!(results.trends.exogenous_steady_state,
               Float64.(vec(view(context.work.initval_exogenous, 1, :))))
-        solve_steady_state!(context, x0, options)
+        solve_steady_state!(context, x0, tolf = options.tolf)
     end
     if options.display
         steadystate_display(context)
@@ -129,48 +129,43 @@ function compute_steady_state!(context::Context)
     df = context.dynarefunctions
     results = context.results.model_results[1]
     work = context.work
-    steadystatemodule = df.steady_state!
-    if Symbol("steady_state!") in names(steadystatemodule)
-        # explicit steady state
-        evaluate_steady_state!(results, steadystatemodule, work.params)
-    end
+    evaluate_steady_state!(results, df.steady_state!, work.params)
 end
 
 """
     function evaluate_steady_state!(results::ModelResults,
-                                static_module::Module,
-                                params::AbstractVector{Float64})
+                                    static_module::Module,
+                                    params::AbstractVector{Float64})
 
 evaluates the steady state function provided by the user
 """
 function evaluate_steady_state!(
     results::ModelResults,
-    static_module::Module,
+    steady_state_function::Function,
     params::AbstractVector{Float64},
 )
     fill!(results.trends.exogenous_steady_state, 0.0)
-    Base.invokelatest(
-        static_module.steady_state!,
+    steady_state_function(
         results.trends.endogenous_steady_state,
         results.trends.exogenous_steady_state,
         params,
     )
 end
 
-function sparse_static_jacobian(ws, params, x, exogenous, m, df)
-    J = get_static_jacobian!(ws, params, x, exogenous, m, df)
+function sparse_static_jacobian(ws, params, x, exogenous, model, df)
+    J = get_static_jacobian!(ws, params, x, exogenous, model, df)
     return sparse(J)
 end
 
     
 """
     function solve_steady_state!(context::Context,
-                                 x0::Vector{Float64})
+                                 x0::Vector{Float64},
+                                 options::SteadyOptions)
 
 solves the static model to obtain the steady state
 """
 function solve_steady_state!(context::Context, x0::AbstractVector{Float64}, options)
-
     ws = StaticWs(context)
     m = context.models[1]
     df = context.dynarefunctions
@@ -210,8 +205,7 @@ function solve_steady_state_core!(context, x0, J!, A0; tolf = 1e-8)
     residuals = zeros(m.endogenous_nbr)
     f!(residuals, x0)
     of = OnceDifferentiable(f!, J!, vec(x0), residuals, A0)
-    @show tolf
-    result = nlsolve(of, x0; method=:robust_trust_region, show_trace=true, ftol=tolf)
+    result = nlsolve(of, x0; method=:robust_trust_region, show_trace=true, ftol = tolf)
     if converged(result)
         results.trends.endogenous_steady_state .= result.zero
     else

@@ -2,6 +2,7 @@ module Dynare
 
 using ExtendedDates
 using Logging
+using StatsFuns
 
 Base.@kwdef struct CommandLineOptions
     compilemodule::Bool = true
@@ -9,6 +10,7 @@ end
 
 include("utils.jl")
 include("dynare_functions.jl")
+using .DFunctions
 include("dynare_containers.jl")
 include("accessors.jl")
 export irf, simulation

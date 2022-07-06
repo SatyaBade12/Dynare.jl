@@ -120,7 +120,7 @@ function perfect_foresight_solver!(context, field)
     m = context.models[1]
     df = context.dynarefunctions
     ncol = m.n_bkwrd + m.n_current + m.n_fwrd + 2 * m.n_both
-    tmp_nbr = df.dynamic!.tmp_nbr::Vector{Int64}
+    tmp_nbr = df.dynamic_tmp_nbr::Vector{Int64}
     dynamic_ws = DynamicWs(m.endogenous_nbr, m.exogenous_nbr, ncol, sum(tmp_nbr[1:2]))
     perfect_foresight_ws = PerfectForesightWs(context, periods)
     X = perfect_foresight_ws.shocks
@@ -396,7 +396,6 @@ function get_residuals_1!(
     permutations::Vector{Tuple{Int64, Int64}} = Tuple{Int64, Int64}[]
 )
     lli = m.lead_lag_incidence
-    dynamic! = df.dynamic!.dynamic!
     n = m.endogenous_nbr
 
     get_initial_dynamic_endogenous_variables!(
@@ -407,8 +406,8 @@ function get_residuals_1!(
         2,
     )
     vr = view(residuals, 1:n)
-    @inbounds Base.invokelatest(
-        dynamic!,
+    @show dynamic_variables
+    df.dynamic!(
         temp_vec,
         vr,
         dynamic_variables,
@@ -437,12 +436,10 @@ function get_residuals_2!(
     permutations::Vector{Tuple{Int64, Int64}} = Tuple{Int64, Int64}[]
 )
     lli = m.lead_lag_incidence
-    dynamic! = df.dynamic!.dynamic!
 
     get_dynamic_endogenous_variables!(dynamic_variables, endogenous, lli, t)
     vr = view(residuals, t1:t2)
-    @inbounds Base.invokelatest(
-        dynamic!,
+    df.dynamic!(
         temp_vec,
         vr,
         dynamic_variables,
@@ -472,7 +469,6 @@ function get_residuals_3!(
     permutations::Vector{Tuple{Int64, Int64}} = Tuple{Int64, Int64}[]
 )
     lli = m.lead_lag_incidence
-    dynamic! = df.dynamic!.dynamic!
 
     get_terminal_dynamic_endogenous_variables!(
         dynamic_variables,
@@ -482,8 +478,7 @@ function get_residuals_3!(
         t,
     )
     vr = view(residuals, t1:t2)
-    @inbounds Base.invokelatest(
-        dynamic!,
+    df.dynamic!(
         temp_vec,
         vr,
         dynamic_variables,

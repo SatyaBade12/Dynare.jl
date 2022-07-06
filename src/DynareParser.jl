@@ -1,5 +1,6 @@
 using CSV
 using DataFrames
+using .DFunctions
 #using .DynareContainers
 using ExtendedDates
 using FastLapackInterface

@@ -1,7 +1,6 @@
 import Base
 using LinearRationalExpectations
 using RuntimeGeneratedFunctions
-using Suppressor
 using TimeDataFrames
 using StatsFuns
 
@@ -159,48 +158,6 @@ struct Model
     NNZDerivatives::Vector{Int64}
     auxiliary_variables::Vector{Dict{String,Any}}
     mcps::Vector{Tuple{Int64, String, String, String}}
-end
-
-struct DynareFunctions
-    dynamic!::Module
-    static!::Module
-    set_auxiliary_variables!::Function
-    set_dynamic_auxiliary_variables!::Function
-    steady_state!::Module
-    function DynareFunctions(compileoption, modfileinfo, modfilename, orig_maximum_lag, orig_maximum_lead)
-        if modfileinfo.has_dynamic_file
-            dynamic! = load_dynare_function(modfilename * "Dynamic", compileoption)
-        else
-            dynamic! = Module()
-        end
-        static! = load_dynare_function(modfilename * "Static", compileoption)
-        if modfileinfo.has_auxiliary_variables
-            set_dynamic_auxiliary_variables! =
-                DFunctions.load_set_dynamic_auxiliary_variables(modfilename)
-            set_auxiliary_variables! =
-                load_dynare_function2(modfilename * "SetAuxiliaryVariables")
-        elseif orig_maximum_lead > 1 || orig_maximum_lag > 1
-            # auxiliary variables are present
-            set_dynamic_auxiliary_variables! =
-                (x...) -> error(modfilename * "DynamicSetAuxiliarySeries is missing")
-            set_auxiliary_variables! =
-                (x...) -> error(modfilename * "SetAuxiliaryVariables is missing")
-        else
-            # no auxiliary variables
-            set_dynamic_auxiliary_variables! = (a, b) -> nothing
-            set_auxiliary_variables! = (a, b) -> nothing
-        end
-        if modfileinfo.has_steadystate_file
-            steady_state! = load_steady_state_function(modfilename * "SteadyState2", compileoption)
-        else
-            steady_state! = Module()
-        end
-        new(dynamic!,
-            static!,
-            set_auxiliary_variables!,
-            set_dynamic_auxiliary_variables!,
-            steady_state!)
-    end
 end
 
 # purely backward model
@@ -897,33 +854,5 @@ function Base.vcat(v1::Vector{T}, v2::Vector{T}, v3::Vector{T}) where {T}
     unsafe_copyto!(arr, n1 + 1, v2, 1, n2)
     unsafe_copyto!(arr, n1 + n2 + 1, v3, 1, n3)
     return arr
-end
-
-function load_dynare_function(modname::String, compileoption::Bool)#::Module
-    @suppress begin
-        fun = readlines(modname * ".jl")
-        if fun[6] == "using StatsFuns"
-            fun[6] = "using Dynare.StatsFuns"
-        else
-            insert!(fun, 6, "using Dynare.StatsFuns")
-        end
-        return eval(Meta.parse(join(fun, "\n")))
-    end
-end
-
-function load_dynare_function2(modname::String)::Function
-    fun = readlines(modname * ".jl")
-    return (@RuntimeGeneratedFunction(Meta.parse(join(fun[3:(end-1)], "\n"))))
-end
-
-function load_steady_state_function(modname::String, compileoption::Bool)
-    fun = readlines(modname * ".jl")
-    if fun[6] == "using StatsFuns"
-        fun[6] = "using Dynare.StatsFuns"
-    else
-        insert!(fun, 6, "using Dynare.StatsFuns")
-    end
-    fun[9] = "function steady_state!(ys_::Vector{T}, exo_::Vector{Float64}, params::Vector{Float64}) where T"
-    return eval(Meta.parse(join(fun, "\n")))
 end
 

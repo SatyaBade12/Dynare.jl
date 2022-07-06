@@ -35,7 +35,7 @@ function DynamicWs(context::Context)
     m = context.models[1]
     df = context.dynarefunctions
     dynamic_nbr = m.n_bkwrd + m.n_current + m.n_fwrd + 2 * m.n_both
-    tmp_nbr = sum(df.dynamic!.tmp_nbr[1:2])
+    tmp_nbr = sum(df.dynamic_tmp_nbr[1:2])
     return DynamicWs(m.endogenous_nbr, m.exogenous_nbr, dynamic_nbr, tmp_nbr)
 end
 
@@ -55,7 +55,7 @@ end
 function StaticWs(context::Context)
     m = context.models[1]
     df = context.dynarefunctions
-    tmp_nbr = sum(df.static!.tmp_nbr[1:2])
+    tmp_nbr = sum(df.static_tmp_nbr[1:2])
     return StaticWs(m.endogenous_nbr, tmp_nbr)
 end
 
@@ -268,8 +268,7 @@ function get_dynamic_residuals!(
     period::Int64,
 )
     x = get_dynamic_variables!(ws, endegenous, exogenous, m, period)
-    Base.invokelatest(
-        df.dynamic!.dynamic!,
+    df.dynamic!(
         ws.temporary_values,
         ws.residuals,
         ws.dynamic_variables,
@@ -288,8 +287,7 @@ function get_static_residuals!(
     exogenous::AbstractVector{Float64},
     df::DynareFunctions
 )
-    Base.invokelatest(
-        df.static!.static!,
+    df.static!(
         ws.temporary_values,
         ws.residuals,
         endogenous,
@@ -332,8 +330,7 @@ function get_dynamic_jacobian!(
 )
     x = get_dynamic_variables!(ws, endogenous, exogenous, m, period)
     jacobian = dynamic_jacobian_matrix(ws, m)
-    Base.invokelatest(
-        df.dynamic!.dynamic!,
+    df.dynamic!(
         ws.temporary_values,
         ws.residuals,
         jacobian,
@@ -367,8 +364,7 @@ function get_initial_jacobian!(
     )
     jacobian = dynamic_jacobian_matrix(ws, m)
     fill!(jacobian, 0.0)
-    Base.invokelatest(
-        df.dynamic!.dynamic!,
+    df.dynamic!(
         ws.temporary_values,
         ws.residuals,
         jacobian,
@@ -401,8 +397,7 @@ function get_terminal_jacobian!(
         period,
     )
     jacobian = dynamic_jacobian_matrix(ws, m)
-    Base.invokelatest(
-        df.dynamic!.dynamic!,
+    df.dynamic!(
         ws.temporary_values,
         ws.residuals,
         jacobian,
@@ -447,8 +442,7 @@ function get_dynamic_jacobian!(
     y = ws.dynamic_variables
     x = exogenous
     it_ = period
-    Base.invokelatest(
-        df.dynamic!.dynamic!,
+    df.dynamic!(
         ws.temporary_values,
         ws.residuals,
         jacobian,
@@ -475,10 +469,10 @@ function get_static_jacobian!(
     m::Model,
     df::DynareFunctions
 )
+    @debug "$(now()): Start get_static_jacobian"
     @debug "any(isnan.(exognous))=$(any(isnan.(exogenous)))"
     jacobian = static_jacobian_matrix(ws, m.endogenous_nbr)
-    Base.invokelatest(
-        df.static!.static!,
+    df.static!(
         ws.temporary_values,
         ws.residuals,
         jacobian,
@@ -486,6 +480,7 @@ function get_static_jacobian!(
         exogenous,
         params,
     )
+    @debug "$(now()): End get_static_jacobian"
     return jacobian
 end
 
