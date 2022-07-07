@@ -112,7 +112,7 @@ end
 
 function dynamic!(T::AbstractVector{<: Real}, residual::AbstractVector{<: Real},
                   y::AbstractVector{<: Real}, x::AbstractMatrix{<: Real}, params::AbstractVector{<: Real}, steady_state::AbstractVector{<: Real}, it_::Int)
-    dynamicResid!(T, residual, y, x, params, steady_state, it_, false)
+    dynamicResid!(T, residual, y, x, params, steady_state, it_, true)
     return nothing
 end
 
@@ -128,7 +128,7 @@ function dynamic!(T::AbstractVector{<: Real}, residual::AbstractVector{<: Real},
     dynamicG2!(T, g2, y, x, params, steady_state, it_, true)
     dynamicG1!(T, g1, y, x, params, steady_state, it_, false)
     dynamicResid!(T, residual, y, x, params, steady_state, it_, false)
-    return nothing
+    return nothing 
 end
 
 function dynamic!(T::AbstractVector{<: Real}, residual::AbstractVector{<: Real}, g1::AbstractMatrix{<: Real}, g2::AbstractMatrix{<: Real}, g3::AbstractMatrix{<: Real},
@@ -157,9 +157,10 @@ function static_functions(filename)
     return  eval(Meta.parse(join(tmp_nbr_str, "; ")))
 end
 
+
 function static!(T::AbstractVector{<: Real}, residual::AbstractVector{<: Real},
                   y::AbstractVector{<: Real}, x::AbstractMatrix{<: Real}, params::AbstractVector{<: Real}, steady_state::AbstractVector{<: Real}, it_::Int)
-    staticResid!(T, residual, y, x, params, steady_state, it_, false)
+    staticResid!(T, residual, y, x, params, steady_state, it_, true)
     return nothing
 end
 
