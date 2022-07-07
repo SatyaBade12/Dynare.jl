@@ -152,8 +152,15 @@ function perfect_foresight_initialization!(context, periods, datafile, exogenous
     elseif algo == steadystate
         compute_steady_state!(context)
         endogenous_steady_state = context.results.model_results[1].trends.endogenous_steady_state
+        exogenous_steady_state = context.results.model_results[1].trends.exogenous_steady_state
         guess_values = repeat(endogenous_steady_state, 1, periods)
+        x = perfect_foresight_ws.x
+        @views x .= transpose(exogenous_steady_state)
+        # adding shocks to exogenous variables
+        shocks = perfect_foresight_ws.shocks
+        @views x[2:size(shocks, 1) + 1,:] .+= shocks
     elseif algo == firstorder
+        compute_steady_state!(context)
         guess_values = simul_first_order!(context, periods, exogenous, dynamic_ws)
     elseif algo == interpolation
     end
@@ -236,7 +243,7 @@ function perfectforesight_core!(perfect_foresight_ws::PerfectForesightWs,
                        )
         @debug "$(now()): end f!"
     end
-    
+
     function J!(A::SparseArrays.SparseMatrixCSC{Float64, Int64}, y::AbstractVecOrMat{Float64})
         @debug "$(now()): start J!"
         A = makeJacobian!(JJ, vec(y), initialvalues, terminalvalues, exogenous, context, periods, ws_threaded)
@@ -263,7 +270,7 @@ function perfectforesight_core!(perfect_foresight_ws::PerfectForesightWs,
 
     rr = copy(residuals)
     F = lu(A0)
-    res = nlsolve(df, vec(y0), method=:robust_trust_region, show_trace=false)
+    res = nlsolve(df, vec(y0), method=:robust_trust_region, show_trace=true)
     @debug "$(now()): end nlsolve"
     endogenous_names = get_endogenous_longname(context.symboltable)
     push!(context.results.model_results[1].simulations,
@@ -406,7 +413,6 @@ function get_residuals_1!(
         2,
     )
     vr = view(residuals, 1:n)
-    @show dynamic_variables
     df.dynamic!(
         temp_vec,
         vr,
