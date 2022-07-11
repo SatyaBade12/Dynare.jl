@@ -343,6 +343,37 @@ function get_dynamic_jacobian!(
     return jacobian
 end
 
+"""
+`get_dynamic_jacobian!`(ws::DynamicWs, params::Vector{Float64}, endogenous::AbstractVector{Float64}, exogenous::Vector{Float64}, m::Model, period::Int64)
+
+sets the dynamic Jacobian matrix ``work.jacobian``, evaluated at ``endogenous`` and ``exogenous`` values, identical for all leads and lags
+"""
+function get_sparse_dynamic_jacobian!(
+    ws::DynamicWs,
+    params::Vector{Float64},
+    endogenous::AbstractVector{Float64},
+    exogenous::AbstractVector{Float64},
+    steadystate::Vector{Float64},
+    m::Model,
+    df::DynareFunctions,
+    period::Int64,
+)
+    x = get_dynamic_variables!(ws, endogenous, exogenous, m, period)
+    jacobian = dynamic_jacobian_matrix(ws, m)
+    df.sparse_dynamic!(
+        ws.temporary_values,
+        ws.I,
+        ws.J.
+        ws.V,
+        ws.dynamic_variables,
+        x,
+        params,
+        steadystate,
+        period,
+    )
+    return jacobian
+end
+
 function get_initial_jacobian!(
     ws::DynamicWs,
     params::Vector{Float64},
