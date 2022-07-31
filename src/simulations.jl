@@ -50,6 +50,7 @@ function simul_first_order!(
         mul!(vy, G, vy_1, 1.0, 1.0)
         vy_1 = vy
     end
+    return Y
 end
 
 """
@@ -76,6 +77,7 @@ function simul_first_order!(
     simul_first_order!(Y, y0, G, H, X)
     y0 .+= c
     Y .+= c
+    return Y
 end
 
 """
@@ -106,21 +108,7 @@ function simul_first_order!(
         r_1 = r
     end
     r_1 .+= c
-end
-
-function is_jacobian_sparse(Y, context)
-    model = context.models[1]
-    results = context.results.model_results[1]
-    work = context.work
-    ncol = model.n_bkwrd + model.n_current
-    nvar = model.endogenous_nbr
-    tmp_nbr = model.dynamic!.tmp_nbr::Vector{Int64}
-    dynamic_ws = DynamicWs(model.endogenous_nbr, model.exogenous_nbr, ncol, sum(tmp_nbr[1:2]))
-    dynamic_variables = dynamic_ws.dynamic_variables
-    params = work.params
-    steadystate = results.trends.endogenous_steady_state
-    lli = model.lead_lag_incidence
-    period = 2
+    return Y
 end
 
 function dynamic_simulation_nl!(Y::AbstractMatrix{Float64},
@@ -161,7 +149,6 @@ function dynamic_simulation_nl!(Y::AbstractMatrix{Float64},
         jacobian_is_sparse = true
         A = sparse(A)
     end
-#    jacobian_is_sparse = false
     for it = 6:periods - 1
         @show it
         function f!(residuals, y)
