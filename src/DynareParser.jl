@@ -151,8 +151,7 @@ function make_containers(
     dynarefunctions = DynareFunctions(commandlineoption.compilemodule,
                                       modelfileinfo,
                                       modfilename,
-                                      model.orig_maximum_lag,
-                                      model.orig_maximum_lead)
+                                      model)
     return Context(symboltable, [model], dynarefunctions, modelfileinfo, results, work)
 end
 

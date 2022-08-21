@@ -1,5 +1,6 @@
 module DFunctions
 
+using Espresso
 using RuntimeGeneratedFunctions
 using StatsFuns
 using Suppressor
@@ -18,11 +19,14 @@ struct DynareFunctions
     set_auxiliary_variables!::Function
     set_dynamic_auxiliary_variables!::Function
     steady_state!::Function
-    function DynareFunctions(compileoption, modfileinfo, modfilename, orig_maximum_lag, orig_maximum_lead)
+    function DynareFunctions(compileoption, modfileinfo, modfilename, model)
+        orig_maximum_lag = model.orig_maximum_lag
+        orig_maximum_lead = model.orig_maximum_lead
+        lastvariable = maximum(model.lead_lag_incidence)
         dynamic_tmp_nbr = zeros(4)
         static_tmp_nbr = zeros(4)
         if isfile(modfilename * "Dynamic.jl")
-            dynamic_tmp_nbr .= dynamic_functions(modfilename)
+            dynamic_tmp_nbr .= dynamic_functions(modfilename, lastvariable)
             dynamic! = DFunctions.dynamic!
         else
             dynamic! = ()->nothing
@@ -58,8 +62,9 @@ struct DynareFunctions
     end
 end
 
-function make_function(file)
+function make_function(file, lastvariable)
     expr = Meta.parse(join(file, "\n"))
+    add_domain_auxiliary_variables!(expr, lastvariable)
     return @RuntimeGeneratedFunction(expr)
 end
 
@@ -93,19 +98,19 @@ function read_dynare_files!(files::Dict{String, Vector{String}},
     return files
 end
 
-function dynamic_functions(filename)
+function dynamic_functions(filename, lastvariable)
     files = Dict{String, Vector{String}}()
     tmp_nbr_str = Vector{String}(undef, 0)
     read_dynare_files!(files, tmp_nbr_str, "$(filename)Dynamic.jl")
 
-    global dynamicResid! = make_function(files["dynamicResid!"])
-    global dynamicG1! = make_function(files["dynamicG1!"])
-    global dynamicG2! = make_function(files["dynamicG2!"])
-    global dynamicG3! = make_function(files["dynamicG3!"])
-    global dynamicResidTT! = make_function(files["dynamicResidTT!"])
-    global dynamicG1TT! = make_function(files["dynamicG1TT!"])
-    global dynamicG2TT! = make_function(files["dynamicG2TT!"])
-    global dynamicG3TT! = make_function(files["dynamicG3TT!"])
+    global dynamicResid! = make_function(files["dynamicResid!"], lastvariable)
+    global dynamicG1! = make_function(files["dynamicG1!"], lastvariable)
+    global dynamicG2! = make_function(files["dynamicG2!"], lastvariable)
+    global dynamicG3! = make_function(files["dynamicG3!"], lastvariable)
+    global dynamicResidTT! = make_function(files["dynamicResidTT!"], lastvariable)
+    global dynamicG1TT! = make_function(files["dynamicG1TT!"], lastvariable)
+    global dynamicG2TT! = make_function(files["dynamicG2TT!"], lastvariable)
+    global dynamicG3TT! = make_function(files["dynamicG3TT!"], lastvariable)
 
     return eval(Meta.parse(join(tmp_nbr_str, "; ")))
 end
@@ -234,5 +239,57 @@ function load_steady_state_function(modname::String, compileoption::Bool)
     return @RuntimeGeneratedFunction(Meta.parse(join(fun[8:length(fun)-1], "\n")))
 end
 
+function add_domain_auxiliary_variables!(expr, lastvariable)
+    pat = :(_x ^ _y)
+    powerexps = findex(pat, expr)
+    repl_list = Dict([])
+    AV = Dict([])
+    for e in powerexps
+        lastvariable, repl = add_dynamic_power_variable(e, lastvariable, AV)
+        repl_list[e] = repl
+    end
+    pat = :(log(_x))
+    logexps = findex(pat, expr)
+    for e in logexps
+        lastvariable, repl = add_dynamic_power_variable(e, lastvariable, AV)
+        repl_list[e] = repl
+    end
+    @show repl_list
+    rewrite_all(expr, repl_list)
+    @show expr
+end
+
+get_dynamic_variables_nbr(context) = maximum(context.models[1].leadlagincidence)
+
+function add_dynamic_power_variable(e_orig, lastvariable, AV)
+    lastvariable += 1
+    repl = copy(e_orig)
+    @show repl
+    pa2 = e_orig.args[2]
+    @show pa2
+    e = :(exp(y[$lastvariable]))
+    if !haskey(AV, pa2)
+        AV[:($(repl.args[2]) ^ _x] = :($e ^ _x)
+    end
+    @show repl.head
+    @show repl.args[2]
+    repl.args[2] = e
+    @show repl
+    return (lastvariable, repl)
+end
+    
+function add_dynamic_log_variable(e_orig, lastvariable, AV)
+    lastvariable += 1
+    repl = copy(e_orig)
+    pa1 = e_orig.args[1]
+    e = :(y[$lastvariable])
+    if !haskey(AV, pa1)
+        AV[repl.args[1]] = e
+    end
+    repl.args[1] = e
+    return (lastvariable, repl)
+end
+    
+    
 end #end module
 
