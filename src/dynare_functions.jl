@@ -63,6 +63,7 @@ struct DynareFunctions
 end
 
 function make_function(file, lastvariable)
+    @show file
     expr = Meta.parse(join(file, "\n"))
     add_domain_auxiliary_variables!(expr, lastvariable)
     return @RuntimeGeneratedFunction(expr)
@@ -78,6 +79,7 @@ function read_dynare_files!(files::Dict{String, Vector{String}},
         if infunction
             push!(content, line)
             if startswith(line, "end")
+                push!(content, "end")
                 !infunction && error("end before function")
                 files[filename] = content
                 content = Vector{String}(undef, 0)
@@ -240,22 +242,29 @@ function load_steady_state_function(modname::String, compileoption::Bool)
 end
 
 function add_domain_auxiliary_variables!(expr, lastvariable)
+    @show expr
     pat = :(_x ^ _y)
     powerexps = findex(pat, expr)
+    @show powerexps
     repl_list = Dict([])
     AV = Dict([])
     for e in powerexps
-        lastvariable, repl = add_dynamic_power_variable(e, lastvariable, AV)
-        repl_list[e] = repl
+        lastvariable = add_dynamic_power_variable(e, lastvariable, AV)
+        repl_list[:($(e.args[2]) ^ _x)] = :(exp($(e.args[2])) ^ _x)
     end
+    @show repl_list
     pat = :(log(_x))
     logexps = findex(pat, expr)
     for e in logexps
-        lastvariable, repl = add_dynamic_power_variable(e, lastvariable, AV)
-        repl_list[e] = repl
+        lastvariable, repl = add_dynamic_log_variable(e, lastvariable, AV)
+        repl_list[e.args[2]] = repl
     end
     @show repl_list
-    rewrite_all(expr, repl_list)
+    if length(repl_list) > 0
+        @show expr
+        rewrite_all(expr, repl_list)
+        @show expr
+    end
     @show expr
 end
 
@@ -269,13 +278,9 @@ function add_dynamic_power_variable(e_orig, lastvariable, AV)
     @show pa2
     e = :(exp(y[$lastvariable]))
     if !haskey(AV, pa2)
-        AV[:($(repl.args[2]) ^ _x] = :($e ^ _x)
+        AV[:($(repl.args[2]))] = e
     end
-    @show repl.head
-    @show repl.args[2]
-    repl.args[2] = e
-    @show repl
-    return (lastvariable, repl)
+    return (lastvariable)
 end
     
 function add_dynamic_log_variable(e_orig, lastvariable, AV)
@@ -284,7 +289,7 @@ function add_dynamic_log_variable(e_orig, lastvariable, AV)
     pa1 = e_orig.args[1]
     e = :(y[$lastvariable])
     if !haskey(AV, pa1)
-        AV[repl.args[1]] = e
+        AV[repl.args[2]] = e
     end
     repl.args[1] = e
     return (lastvariable, repl)
