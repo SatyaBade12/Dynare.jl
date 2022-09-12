@@ -39,7 +39,7 @@ include("simulations.jl")
 include("nonlinear/NLsolve.jl")
 using .NLsolve
 include("estimation/estimation.jl")
-export mh_estimation
+export mh_estimation, get_observations, SSWs, make_logposteriordensity, logpriordensity, loglikelihood
 
 export @dynare
 

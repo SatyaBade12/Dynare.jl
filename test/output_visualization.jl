@@ -3,6 +3,7 @@ using Dynare
 using Plots
 using KernelDensity
 using Distributions
+using TransformVariables
 
 context = @dynare "test/models/ls2003/ls2003.mod"
 
@@ -84,3 +85,16 @@ f = mcmc_diagnostics(Dynare.my_chains, context, ["psi1", "psi2", "psi3", "rho_R"
 display(f)
 #g = plot_priors(context, ["psi1", "psi2", "psi3", "rho_R"])
 #display(g)
+
+function acceptance_ratio(chains)
+    n_iters = size(chains.value.data)[1]
+    n = 1
+    for i in 1:n_iters-1
+        if chains.value[i, :, :].data != chains.value[i+1, :, :].data
+            n += 1
+        end
+    end
+    n/n_iters
+end
+
+r = acceptance_ratio(Dynare.my_chains)
