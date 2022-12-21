@@ -41,9 +41,35 @@ using .NLsolve
 include("estimation/estimation.jl")
 export mh_estimation
 
-export @dynare
+export @dynare, dynare
 
 macro dynare(modfile_arg::String, args...)
+    @info "Dynare version: $(module_version(Dynare))"
+    modname = get_modname(modfile_arg)
+    @info "$(now()): Starting @dynare $modfile_arg"
+    arglist = []
+    compilemodule = true
+    preprocessing = true
+    for (i, a) in enumerate(args)
+        if a == "nocompile"
+            compilemodule = false
+        elseif a == "nopreprocessing"
+            preprocessing = false
+        else
+            push!(arglist, a)
+        end
+    end
+    if preprocessing
+        modfilename = modname * ".mod"
+        dynare_preprocess(modfilename, arglist)
+    end
+    @info "$(now()): End of preprocessing"
+    options = CommandLineOptions(compilemodule)
+    context = parser(modname, options)
+    return context
+end
+
+function dynare(modfile_arg::String, args...)
     @info "Dynare version: $(module_version(Dynare))"
     modname = get_modname(modfile_arg)
     @info "$(now()): Starting @dynare $modfile_arg"
@@ -81,4 +107,20 @@ end
 
 #include("precompile_Dynare.jl")
 #_precompile_()
+
+import SnoopPrecompile
+SnoopPrecompile.@precompile_all_calls begin
+    dynare("test/models/example1/example1.mod")
+    dynare("test/models/example2/example2.mod")
+    dynare("test/models/example3/example3.mod")
+    dynare("test/models/example3ss/example3ss.mod")
+    dynare("test/models/example3ss/example3ss_analytical.mod")
+    dynare("test/models/example3ss/example3ss_partial.mod")
+    dynare("test/models/example3report/example3report.mod")
+    #dynare("test/models/cgg/cgg_ramsey.mod")
+    #dynare("test/models/example1pf/example1pf.mod")
+end
+
+
+
 end # module

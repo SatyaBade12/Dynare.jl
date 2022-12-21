@@ -7,7 +7,7 @@ using TimeDataFrames
 using StatsFuns
 
 export Context,
-    DynareSymbol, Model, ModelResults, Results, Simulation, SymbolType, Work, Trends
+ DynareSymbol, Model, ModelResults, Results, Simulation, SymbolType, Work, Trends
 
 RuntimeGeneratedFunctions.init(@__MODULE__)
 
@@ -893,7 +893,7 @@ Base.show(io::IO, ds::DynareSymbol) = show_field_value(ds)
 
 const SymbolTable = Dict{String,DynareSymbol}
 
-struct Context
+Base.@kwdef struct Context
     symboltable::SymbolTable
     models::Vector{Model}
 #    dynarefunctions::DynareFunctions
